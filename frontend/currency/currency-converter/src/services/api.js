@@ -2,6 +2,7 @@ import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:8000';
 
+// Convert currency using FastAPI backend
 export const convertCurrency = async (from, to, amount) => {
   try {
     const response = await axios.post(`${API_BASE_URL}/convert`, {
@@ -16,14 +17,13 @@ export const convertCurrency = async (from, to, amount) => {
   }
 };
 
+// Fetch supported currencies from backend
 export const fetchCurrencies = async () => {
   try {
     const response = await axios.get(`${API_BASE_URL}/currencies`);
-    return response.data;
+    return response.data.currencies; // ✅ Only return the "currencies" dictionary
   } catch (error) {
     console.error('Fetch currencies error:', error.response?.data || error.message);
     throw error;
   }
 };
-
-
