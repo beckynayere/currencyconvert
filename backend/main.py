@@ -1,40 +1,63 @@
-import requests
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import date
+import requests
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = FastAPI()
 
-# Enable CORS for frontend access
+# Configure CORS from environment variables
+# Default to localhost:5173 if not specified in .env
+allowed_origins = os.getenv(
+    "ALLOWED_ORIGINS", 
+    "http://localhost:5173"
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"], 
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 class CurrencyRequest(BaseModel):
     amount: float
     from_currency: str
     to_currency: str
 
+# Get the base API URL from environment variables
+# Default to the current CDN if not specified
+CURRENCY_API_BASE = os.getenv(
+    "CURRENCY_API_BASE_URL",
+    "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api"
+)
 
-# POST /convert
 @app.post("/convert")
-def convert_currency(data: CurrencyRequest):
+async def convert_currency(data: CurrencyRequest):
     try:
-        today = date.today().isoformat() 
+        today = date.today().isoformat()
         from_cur = data.from_currency.lower()
         to_cur = data.to_currency.lower()
 
-        url = f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{today}/v1/currencies/{from_cur}.json"
+        url = f"{CURRENCY_API_BASE}@{today}/v1/currencies/{from_cur}.json"
         response = requests.get(url)
         response.raise_for_status()
 
         json_data = response.json()
+        
+        # Validate that the currencies exist in the response
+        if from_cur not in json_data or to_cur not in json_data[from_cur]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Currency pair {from_cur.upper()}/{to_cur.upper()} not supported"
+            )
+
         rate = json_data[from_cur][to_cur]
         converted = round(data.amount * rate, 4)
 
@@ -48,15 +71,21 @@ def convert_currency(data: CurrencyRequest):
             "converted": converted
         }
 
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Currency API error: {str(e)}"
+        )
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
 
-
-# GET /currencies
 @app.get("/currencies")
-def get_supported_currencies():
+async def get_supported_currencies():
     try:
-        url = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.json"
+        url = f"{CURRENCY_API_BASE}@latest/v1/currencies.json"
         response = requests.get(url)
         response.raise_for_status()
 
@@ -65,5 +94,83 @@ def get_supported_currencies():
             "currencies": {code.upper(): name for code, name in result.items()}
         }
 
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Currency API error: {str(e)}"
+        )
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+# import requests
+# from fastapi import FastAPI
+# from fastapi.middleware.cors import CORSMiddleware
+# from pydantic import BaseModel
+# from datetime import date
+
+# app = FastAPI()
+
+# # Enable CORS for frontend access
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["http://localhost:5173"], 
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
+
+# class CurrencyRequest(BaseModel):
+#     amount: float
+#     from_currency: str
+#     to_currency: str
+
+
+# # POST /convert
+# @app.post("/convert")
+# def convert_currency(data: CurrencyRequest):
+#     try:
+#         today = date.today().isoformat() 
+#         from_cur = data.from_currency.lower()
+#         to_cur = data.to_currency.lower()
+
+#         url = f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{today}/v1/currencies/{from_cur}.json"
+#         response = requests.get(url)
+#         response.raise_for_status()
+
+#         json_data = response.json()
+#         rate = json_data[from_cur][to_cur]
+#         converted = round(data.amount * rate, 4)
+
+#         return {
+#             "query": {
+#                 "amount": data.amount,
+#                 "from": from_cur.upper(),
+#                 "to": to_cur.upper()
+#             },
+#             "rate": rate,
+#             "converted": converted
+#         }
+
+#     except Exception as e:
+#         return {"error": str(e)}
+
+
+# # GET /currencies
+# @app.get("/currencies")
+# def get_supported_currencies():
+#     try:
+#         url = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.json"
+#         response = requests.get(url)
+#         response.raise_for_status()
+
+#         result = response.json()
+#         return {
+#             "currencies": {code.upper(): name for code, name in result.items()}
+#         }
+
+#     except Exception as e:
+#         return {"error": str(e)}
