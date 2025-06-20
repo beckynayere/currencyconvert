@@ -13,7 +13,10 @@ const currencyToCountry = {
   KES: 'KE',
   AUD: 'AU', 
   CHF: 'CH', 
-  CNY: 'CN'
+  CNY: 'CN',
+  INR: 'IN',  
+  ZAR: 'ZA',  
+  BRL: 'BR'
   // Add more as needed
 };
 

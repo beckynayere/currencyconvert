@@ -103,3 +103,66 @@
     #6c5ce7 100%
   );
 }
+
+.currency-flag-in {
+  background-color: #ff9933;
+  background-image: linear-gradient(
+    180deg,
+    #ff9933 0%,
+    #ffffff 33%,
+    #138808 33%,
+    #138808 100%
+  );
+}
+
+.currency-flag-za {
+  background-color: #000000;
+  background-image: linear-gradient(
+    45deg,
+    #000000 0%,
+    #007847 25%,
+    #ffb612 25%,
+    #ffb612 50%,
+    #de3831 50%,
+    #002395 75%,
+    #ffffff 75%,
+    #ffffff 100%
+  );
+}
+
+.currency-flag-br {
+  background-color: #009c3b;
+  background-image: radial-gradient(
+    circle at center,
+    #ffdf00 0%,
+    #ffdf00 35%,
+    #002776 35%,
+    #002776 100%
+  );
+}
+
+.currency-flag-ru {
+  background-color: #c8102e;
+  background-image: linear-gradient(
+    180deg,
+    #c8102e 0%,
+    #c8102e 33%,
+    #ffffff 33%,
+    #ffffff 66%,
+    #c8102e 66%,
+    #c8102e 100%
+  );
+}
+
+.currency-flag-ua {
+  background-color: #c8102e;
+  background-image: linear-gradient(
+    180deg,
+    #c8102e 0%,
+    #c8102e 33%,
+    #ffffff 33%,
+    #ffffff 66%,
+    #c8102e 66%,
+    #c8102e 100%
+  );
+}

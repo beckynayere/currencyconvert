@@ -979,7 +979,7 @@ import CurrencyAutocomplete from '../CurrencyAutocomplete/CurrencyAutocomplete';
 import CurrencyFlag from '../CurrencyFlag/CurrencyFlag';
 import './CurrencyConverter.css';
 
-const popularCurrencyCodes = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'KES', 'AUD', 'CNY', 'CHF'];
+const popularCurrencyCodes = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'KES', 'AUD', 'CNY', 'CHF', 'INR', 'ZAR', 'BRL'];
 
 const CurrencyConverter = () => {
   const {
