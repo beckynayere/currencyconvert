@@ -252,38 +252,114 @@
 // });
 
 
+// import { defineConfig, loadEnv } from 'vite';
+// import react from '@vitejs/plugin-react';
+
+// export default defineConfig(({ mode }) => {  // Removed unused 'command' parameter
+//   // Safely load environment variables without process.cwd()
+//   const env = loadEnv(mode, '', ['VITE_']);
+  
+//   // Use production API URL in all environments
+//   const apiUrl = env.VITE_API_URL || 'https://currencyconvert-brwe.onrender.com';
+
+//   return {
+//     plugins: [react()],
+//     define: {
+//       'import.meta.env.VITE_API_URL': JSON.stringify(apiUrl),
+//       'import.meta.env.MODE': JSON.stringify(mode)
+//     },
+//     server: {
+//       proxy: {
+//         '/api': {
+//           target: apiUrl,
+//           changeOrigin: true,
+//           rewrite: (path) => path.replace(/^\/api/, ''),
+//           secure: false
+//         }
+//       }
+//     },
+//     build: {
+//       target: 'esnext',
+//       minify: 'terser',
+//       terserOptions: {
+//         compress: {
+//           drop_console: true
+//         }
+//       }
+//     }
+//   };
+// });
+
+
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig(({ mode }) => {  // Removed unused 'command' parameter
-  // Safely load environment variables without process.cwd()
+export default defineConfig(({ mode }) => {
+  // Load ONLY VITE_ prefixed env variables
   const env = loadEnv(mode, '', ['VITE_']);
   
-  // Use production API URL in all environments
-  const apiUrl = env.VITE_API_URL || 'https://currencyconvert-brwe.onrender.com';
+  // Ensure no trailing slash in API URL
+  const apiUrl = (env.VITE_API_URL || 'https://currencyconvert-brwe.onrender.com').replace(/\/$/, '');
 
   return {
     plugins: [react()],
+    
+    // Environment variables exposed to client
     define: {
       'import.meta.env.VITE_API_URL': JSON.stringify(apiUrl),
-      'import.meta.env.MODE': JSON.stringify(mode)
+      'import.meta.env.MODE': JSON.stringify(mode),
+      'import.meta.env.PROD': JSON.stringify(mode === 'production')
     },
+    
+    // Development server settings
     server: {
       proxy: {
         '/api': {
           target: apiUrl,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, ''),
-          secure: false
+          secure: false,
+          // Additional headers for FastAPI compatibility
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
         }
-      }
+      },
+      // Configure port for consistency
+      port: 5173,
+      // Auto-open browser
+      open: true
     },
+    
+    // Production build settings
     build: {
       target: 'esnext',
       minify: 'terser',
       terserOptions: {
         compress: {
-          drop_console: true
+          drop_console: mode === 'production' // Only remove in production
+        }
+      },
+      // Generate sourcemaps for debugging
+      sourcemap: true,
+      // Optimize chunk splitting
+      rollupOptions: {
+        output: {
+          manualChunks: undefined,
+          entryFileNames: 'assets/[name].[hash].js',
+          chunkFileNames: 'assets/[name].[hash].js'
+        }
+      }
+    },
+    
+    // Preview server settings
+    preview: {
+      port: 4173,
+      proxy: {
+        '/api': {
+          target: apiUrl,
+          changeOrigin: true
         }
       }
     }
