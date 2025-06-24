@@ -98,90 +98,48 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ command, mode }) => {
-  // Load env variables from .env files (VITE_ prefixed only)
-  const env = loadEnv(mode, process.cwd(), ['VITE_']);
-
-  // Production/development check
-  const isProduction = command === 'build';
+  const env = loadEnv(mode, '', ['VITE_']);
 
   return {
-    plugins: [
-      react({
-        // React-specific settings
-        jsxRuntime: 'automatic',
-        babel: {
-          plugins: ['babel-plugin-macros']
-        }
-      })
-    ],
-
-    // Environment variables exposed to client
+    plugins: [react()],
     define: {
       'import.meta.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL),
       'import.meta.env.MODE': JSON.stringify(mode),
-      'import.meta.env.PROD': JSON.stringify(isProduction),
-      'import.meta.env.DEV': JSON.stringify(!isProduction)
+      'import.meta.env.PROD': JSON.stringify(command === 'build'),
+      'import.meta.env.DEV': JSON.stringify(command === 'serve')
     },
-
-    // Path aliases
     resolve: {
       alias: {
-        '@': '/src',
-        '@components': '/src/components',
-        '@assets': '/src/assets'
+        '@': '/src'
       }
     },
-
-    // Development server config
     server: {
-      port: 3000,
-      open: true, // Auto-open browser
       proxy: env.VITE_API_URL ? {
         '/api': {
           target: env.VITE_API_URL,
           changeOrigin: true,
-          secure: false,
-          rewrite: (path) => path.replace(/^\/api/, ''),
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-          }
+          rewrite: (path) => path.replace(/^\/api/, '')
         }
       } : undefined
     },
-
-    // Production build config
     build: {
       target: 'esnext',
-      minify: isProduction ? 'terser' : false,
-      sourcemap: true,
-      chunkSizeWarningLimit: 1600,
+      minify: 'terser',
       terserOptions: {
         compress: {
-          drop_console: isProduction, // Remove console.log in production
-          drop_debugger: true
+          defaults: true,
+          drop_console: command === 'build' // Remove console logs in production
         },
         format: {
-          comments: false
+          comments: false // Remove comments
         }
       },
+      sourcemap: true,
       rollupOptions: {
         output: {
-          manualChunks: (id) => {
-            if (id.includes('node_modules')) {
-              return 'vendor';
-            }
-          },
-          entryFileNames: `assets/[name].[hash].js`,
-          chunkFileNames: `assets/[name].[hash].js`,
-          assetFileNames: `assets/[name].[hash].[ext]`
+          manualChunks: undefined
         }
       }
-    },
-
-    // Preview config (what runs after 'vite preview')
-    preview: {
-      port: 3000,
-      strictPort: true
     }
   };
 });
