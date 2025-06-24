@@ -52,46 +52,136 @@
 
 
 
+// import { defineConfig, loadEnv } from 'vite';
+// import react from '@vitejs/plugin-react';
+
+// export default defineConfig(({ command, mode }) => {
+//   const env = loadEnv(mode, '', ['VITE_']);
+
+//   return {
+//     plugins: [react()],
+//     define: {
+//       'import.meta.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL),
+//       'import.meta.env.MODE': JSON.stringify(mode),
+//       'import.meta.env.PROD': JSON.stringify(command === 'build'),
+//       'import.meta.env.DEV': JSON.stringify(command === 'serve')
+//     },
+//     resolve: {
+//       alias: {
+//         '@': '/src'
+//       }
+//     },
+//     server: {
+//       proxy: env.VITE_API_URL ? {
+//         '/api': {
+//           target: env.VITE_API_URL,
+//           changeOrigin: true,
+//           rewrite: (path) => path.replace(/^\/api/, '')
+//         }
+//       } : undefined
+//     },
+//     build: {
+//       target: 'esnext',
+//       minify: 'terser', // or 'esbuild'
+//       sourcemap: true,
+//       rollupOptions: {
+//         output: {
+//           manualChunks: undefined
+//         }
+//       }
+//     }
+//   };
+// });
+
+
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ command, mode }) => {
-  // Load environment variables (Vite automatically knows the root directory)
-  const env = loadEnv(mode, '', ['VITE_']); // Only load VITE_ prefixed vars
+  // Load env variables from .env files (VITE_ prefixed only)
+  const env = loadEnv(mode, process.cwd(), ['VITE_']);
+
+  // Production/development check
+  const isProduction = command === 'build';
 
   return {
-    plugins: [react()],
+    plugins: [
+      react({
+        // React-specific settings
+        jsxRuntime: 'automatic',
+        babel: {
+          plugins: ['babel-plugin-macros']
+        }
+      })
+    ],
+
+    // Environment variables exposed to client
     define: {
-      // Runtime environment variables
       'import.meta.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL),
       'import.meta.env.MODE': JSON.stringify(mode),
-      'import.meta.env.PROD': JSON.stringify(command === 'build'),
-      'import.meta.env.DEV': JSON.stringify(command === 'serve')
+      'import.meta.env.PROD': JSON.stringify(isProduction),
+      'import.meta.env.DEV': JSON.stringify(!isProduction)
     },
+
+    // Path aliases
     resolve: {
       alias: {
-        '@': '/src'
+        '@': '/src',
+        '@components': '/src/components',
+        '@assets': '/src/assets'
       }
     },
+
+    // Development server config
     server: {
+      port: 3000,
+      open: true, // Auto-open browser
       proxy: env.VITE_API_URL ? {
         '/api': {
           target: env.VITE_API_URL,
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, '')
+          secure: false,
+          rewrite: (path) => path.replace(/^\/api/, ''),
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
         }
       } : undefined
     },
+
+    // Production build config
     build: {
       target: 'esnext',
-      minify: 'terser',
+      minify: isProduction ? 'terser' : false,
       sourcemap: true,
+      chunkSizeWarningLimit: 1600,
+      terserOptions: {
+        compress: {
+          drop_console: isProduction, // Remove console.log in production
+          drop_debugger: true
+        },
+        format: {
+          comments: false
+        }
+      },
       rollupOptions: {
-        // Ensure env variables are properly inlined
         output: {
-          manualChunks: undefined
+          manualChunks: (id) => {
+            if (id.includes('node_modules')) {
+              return 'vendor';
+            }
+          },
+          entryFileNames: `assets/[name].[hash].js`,
+          chunkFileNames: `assets/[name].[hash].js`,
+          assetFileNames: `assets/[name].[hash].[ext]`
         }
       }
+    },
+
+    // Preview config (what runs after 'vite preview')
+    preview: {
+      port: 3000,
+      strictPort: true
     }
   };
 });
