@@ -146,67 +146,144 @@
 
 
 
+// import { defineConfig, loadEnv } from 'vite';
+// import react from '@vitejs/plugin-react';
+
+// export default defineConfig(({ command, mode }) => {
+
+//   const env = loadEnv(mode, '', ['VITE_']);
+  
+ 
+//   const apiUrl = env.VITE_API_URL || 'https://currencyconvert-brwe.onrender.com';
+
+  
+//   return {
+//     plugins: [react()],
+    
+   
+//     define: {
+//       'import.meta.env.VITE_API_URL': JSON.stringify(apiUrl), 
+//       'import.meta.env.MODE': JSON.stringify(mode),
+//       'import.meta.env.PROD': JSON.stringify(command === 'build'),
+//       'import.meta.env.DEV': JSON.stringify(command === 'serve')
+//     },
+    
+  
+//     resolve: {
+//       alias: {
+//         '@': '/src'
+//       }
+//     },
+    
+    
+//     server: {
+//       proxy: {
+//         '/api': {
+//           target: apiUrl, 
+//           changeOrigin: true,
+//           rewrite: (path) => path.replace(/^\/api/, ''),
+//           secure: false 
+//         }
+//       }
+//     },
+    
+//     // 7. Production build settings
+//     build: {
+//       target: 'esnext',
+//       minify: 'terser',
+//       terserOptions: {
+//         compress: {
+//           drop_console: true, 
+//           pure_funcs: ['console.debug', 'console.warn'] 
+//         },
+//         format: {
+//           comments: false
+//         }
+//       },
+//       sourcemap: true,
+//       rollupOptions: {
+//         output: {
+//           manualChunks: undefined,
+//           entryFileNames: 'assets/[name].[hash].js',
+//           assetFileNames: 'assets/[name].[hash][extname]'
+//         }
+//       }
+//     }
+//   };
+// });
+
+
+// import { defineConfig, loadEnv } from 'vite';
+// import react from '@vitejs/plugin-react';
+
+// export default defineConfig(({ mode }) => {  // Removed unused 'command' parameter
+//   // Safely load environment variables without process.cwd()
+//   const env = loadEnv(mode, '', ['VITE_']);
+  
+//   // Use production API URL in all environments
+//   const apiUrl = env.VITE_API_URL || 'https://currencyconvert-brwe.onrender.com';
+
+//   return {
+//     plugins: [react()],
+//     define: {
+//       'import.meta.env.VITE_API_URL': JSON.stringify(apiUrl),
+//       'import.meta.env.MODE': JSON.stringify(mode)
+//     },
+//     server: {
+//       proxy: {
+//         '/api': {
+//           target: apiUrl,
+//           changeOrigin: true,
+//           rewrite: (path) => path.replace(/^\/api/, ''),
+//           secure: false
+//         }
+//       }
+//     },
+//     build: {
+//       target: 'esnext',
+//       minify: 'terser',
+//       terserOptions: {
+//         compress: {
+//           drop_console: true
+//         }
+//       }
+//     }
+//   };
+// });
+
+
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig(({ command, mode }) => {
-  // 1. Load environment variables (safely)
-  // const env = loadEnv(mode, process.cwd(), ['VITE_']);
+export default defineConfig(({ mode }) => {  // Removed unused 'command' parameter
+  // Safely load environment variables without process.cwd()
   const env = loadEnv(mode, '', ['VITE_']);
   
-  // 2. Set API URL with proper fallback
+  // Use production API URL in all environments
   const apiUrl = env.VITE_API_URL || 'https://currencyconvert-brwe.onrender.com';
 
-  // 3. Configuration object
   return {
     plugins: [react()],
-    
-    // 4. Environment variables exposed to client
     define: {
-      'import.meta.env.VITE_API_URL': JSON.stringify(apiUrl), // Use the defined apiUrl
-      'import.meta.env.MODE': JSON.stringify(mode),
-      'import.meta.env.PROD': JSON.stringify(command === 'build'),
-      'import.meta.env.DEV': JSON.stringify(command === 'serve')
+      'import.meta.env.VITE_API_URL': JSON.stringify(apiUrl),
+      'import.meta.env.MODE': JSON.stringify(mode)
     },
-    
-    // 5. Path aliases
-    resolve: {
-      alias: {
-        '@': '/src'
-      }
-    },
-    
-    
     server: {
       proxy: {
         '/api': {
-          target: apiUrl, 
+          target: apiUrl,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, ''),
-          secure: false 
+          secure: false
         }
       }
     },
-    
-    // 7. Production build settings
     build: {
       target: 'esnext',
       minify: 'terser',
       terserOptions: {
         compress: {
-          drop_console: true, // Always remove console in production
-          pure_funcs: ['console.debug', 'console.warn'] // Optional: keep certain logs
-        },
-        format: {
-          comments: false
-        }
-      },
-      sourcemap: true,
-      rollupOptions: {
-        output: {
-          manualChunks: undefined,
-          entryFileNames: 'assets/[name].[hash].js',
-          assetFileNames: 'assets/[name].[hash][extname]'
+          drop_console: true
         }
       }
     }
