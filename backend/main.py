@@ -657,7 +657,169 @@
 #         )
 
 
-from fastapi import FastAPI, HTTPException, Request
+
+# from fastapi import FastAPI, HTTPException, Request, Response
+# from fastapi.middleware.cors import CORSMiddleware
+# from pydantic import BaseModel
+# from datetime import date, timedelta
+# import requests
+# import os
+# from dotenv import load_dotenv
+
+# load_dotenv()
+
+# app = FastAPI()
+
+# # ====================== CORS CONFIGURATION ======================
+# allowed_origins = [
+#     "http://localhost:5173",
+#     "https://currencyconverterry.vercel.app",
+#     "https://currencyconverterry-git-master-naver.vercel.app",
+#     "https://currencyconvertterm-langa.vercel.app"
+# ]
+
+# # Add environment variable origins
+# env_origins = os.getenv("ALLOWED_ORIGINS", "").split(",")
+# allowed_origins.extend([origin.strip().rstrip('/') for origin in env_origins if origin.strip()])
+
+# # Final cleanup
+# allowed_origins = list({origin.lower() for origin in allowed_origins if origin})
+
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=allowed_origins,
+#     allow_credentials=True,
+#     allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
+#     allow_headers=["*"],
+#     expose_headers=["*"],
+#     max_age=600
+# )
+
+# # ====================== EXPLICIT OPTIONS HANDLER ======================
+# @app.options("/convert")
+# async def preflight_handler():
+#     return Response(
+#         content="OK",
+#         headers={
+#             "Access-Control-Allow-Origin": ", ".join(allowed_origins),
+#             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+#             "Access-Control-Allow-Headers": "Content-Type"
+#         }
+#     )
+
+# @app.options("/currencies")
+# async def preflight_handler():
+#     return Response(
+#         content="OK",
+#         headers={
+#             "Access-Control-Allow-Origin": ", ".join(allowed_origins),
+#             "Access-Control-Allow-Methods": "GET, OPTIONS",
+#             "Access-Control-Allow-Headers": "Content-Type"
+#         }
+#     )
+
+# # ====================== APPLICATION ENDPOINTS ======================
+# class CurrencyRequest(BaseModel):
+#     amount: float
+#     from_currency: str
+#     to_currency: str
+
+# @app.get("/")
+# async def health_check():
+#     return {
+#         "status": "running",
+#         "docs": "/docs",
+#         "endpoints": {
+#             "convert": "/convert",
+#             "currencies": "/currencies"
+#         }
+#     }
+
+# def get_fallback_dates():
+#     today = date.today()
+#     return [
+#         today.isoformat(),
+#         (today - timedelta(days=1)).isoformat(),
+#         (today - timedelta(days=2)).isoformat(),
+#         "latest"
+#     ]
+
+# async def fetch_exchange_rate(from_cur: str, to_cur: str):
+#     base_url = os.getenv("CURRENCY_API_BASE_URL", 
+#                        "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api")
+    
+#     for day in get_fallback_dates():
+#         try:
+#             url = f"{base_url}@{day}/v1/currencies/{from_cur}.json"
+#             response = requests.get(url, timeout=5)
+#             response.raise_for_status()
+#             json_data = response.json()
+#             return float(json_data[from_cur][to_cur])
+#         except (requests.RequestException, KeyError, ValueError) as e:
+#             continue
+    
+#     raise HTTPException(
+#         status_code=404,
+#         detail="Could not fetch exchange rate after multiple attempts"
+#     )
+
+# @app.post("/convert")
+# async def convert_currency(data: CurrencyRequest):
+#     try:
+#         from_cur = data.from_currency.lower()
+#         to_cur = data.to_currency.lower()
+        
+#         if from_cur == to_cur:
+#             return {
+#                 "query": {
+#                     "amount": data.amount,
+#                     "from": from_cur.upper(),
+#                     "to": to_cur.upper()
+#                 },
+#                 "rate": 1.0,
+#                 "converted": data.amount
+#             }
+        
+#         rate = await fetch_exchange_rate(from_cur, to_cur)
+#         converted = round(data.amount * rate, 4)
+
+#         return {
+#             "query": {
+#                 "amount": data.amount,
+#                 "from": from_cur.upper(),
+#                 "to": to_cur.upper()
+#             },
+#             "rate": rate,
+#             "converted": converted
+#         }
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=400,
+#             detail=f"Conversion error: {str(e)}"
+#         )
+
+# @app.get("/currencies")
+# async def get_supported_currencies():
+#     try:
+#         base_url = os.getenv("CURRENCY_API_BASE_URL",
+#                            "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api")
+#         url = f"{base_url}@latest/v1/currencies.json"
+#         response = requests.get(url, timeout=5)
+#         response.raise_for_status()
+        
+#         result = response.json()
+#         return {
+#             "currencies": {code.upper(): name for code, name in result.items()}
+#         }
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=400,
+#             detail=f"Failed to fetch currencies: {str(e)}"
+#         )
+
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import date, timedelta
@@ -670,44 +832,52 @@ load_dotenv()
 app = FastAPI()
 
 # ====================== CORS CONFIGURATION ======================
-# All possible frontend origins (including common deployment variants)
 allowed_origins = [
-    "http://localhost:5173",  # Local development
-    "https://currencyconverterry.vercel.app",  # Main production URL
-    "https://currencyconverterry-git-master-naver.vercel.app",  # From your error
-    "https://currencyconvertterm-langa.vercel.app"  # Previous config
+    "http://localhost:5173",
+    "https://currencyconverterry.vercel.app",
+    "https://currencyconverterry-git-master-naver.vercel.app",
+    "https://currencyconvertterm-langa.vercel.app"
 ]
 
-# Add any environment variable origins
+# Add environment variable origins
 env_origins = os.getenv("ALLOWED_ORIGINS", "").split(",")
 allowed_origins.extend([origin.strip().rstrip('/') for origin in env_origins if origin.strip()])
 
-# Final cleanup (remove duplicates and empty strings)
+# Final cleanup
 allowed_origins = list({origin.lower() for origin in allowed_origins if origin})
 
+# Enhanced CORS middleware configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],  # Explicit methods
+    allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
-    max_age=600  # Cache preflight for 10 minutes
+    max_age=600
 )
 
-# ====================== DEBUG ENDPOINT ======================
-@app.get("/cors-check")
-async def cors_check(request: Request):
-    """Temporary endpoint to verify CORS configuration"""
-    client_origin = request.headers.get("origin")
-    return {
-        "client_origin": client_origin,
-        "allowed_origins": allowed_origins,
-        "is_allowed": client_origin in allowed_origins,
-        "headers_received": dict(request.headers)
-    }
+# ====================== GLOBAL OPTIONS HANDLER ======================
+@app.middleware("http")
+async def add_cors_headers(request: Request, call_next):
+    if request.method == "OPTIONS":
+        response = Response(
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": ", ".join(allowed_origins),
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization",
+                "Access-Control-Allow-Credentials": "true"
+            }
+        )
+        return response
+    
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = ", ".join(allowed_origins)
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
 
-# ====================== APPLICATION CODE ======================
+# ====================== APPLICATION ENDPOINTS ======================
 class CurrencyRequest(BaseModel):
     amount: float
     from_currency: str
@@ -724,33 +894,23 @@ async def health_check():
         }
     }
 
-def get_fallback_dates():
-    today = date.today()
-    return [
-        today.isoformat(),
-        (today - timedelta(days=1)).isoformat(),
-        (today - timedelta(days=2)).isoformat(),
-        "latest"
-    ]
-
-async def fetch_exchange_rate(from_cur: str, to_cur: str):
-    base_url = os.getenv("CURRENCY_API_BASE_URL", 
-                       "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api")
-    
-    for day in get_fallback_dates():
-        try:
-            url = f"{base_url}@{day}/v1/currencies/{from_cur}.json"
-            response = requests.get(url, timeout=5)
-            response.raise_for_status()
-            json_data = response.json()
-            return float(json_data[from_cur][to_cur])
-        except (requests.RequestException, KeyError, ValueError) as e:
-            continue
-    
-    raise HTTPException(
-        status_code=404,
-        detail="Could not fetch exchange rate after multiple attempts"
-    )
+@app.get("/currencies")
+async def get_supported_currencies():
+    try:
+        base_url = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api"
+        url = f"{base_url}@latest/v1/currencies.json"
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        
+        result = response.json()
+        return {
+            "currencies": {code.upper(): name for code, name in result.items()}
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to fetch currencies: {str(e)}"
+        )
 
 @app.post("/convert")
 async def convert_currency(data: CurrencyRequest):
@@ -769,7 +929,8 @@ async def convert_currency(data: CurrencyRequest):
                 "converted": data.amount
             }
         
-        rate = await fetch_exchange_rate(from_cur, to_cur)
+        # Simplified conversion logic for testing
+        rate = 1.2  # Example fixed rate
         converted = round(data.amount * rate, 4)
 
         return {
@@ -781,33 +942,9 @@ async def convert_currency(data: CurrencyRequest):
             "rate": rate,
             "converted": converted
         }
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(
             status_code=400,
             detail=f"Conversion error: {str(e)}"
         )
 
-@app.get("/currencies")
-async def get_supported_currencies():
-    try:
-        base_url = os.getenv("CURRENCY_API_BASE_URL",
-                           "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api")
-        url = f"{base_url}@latest/v1/currencies.json"
-        response = requests.get(url, timeout=5)
-        response.raise_for_status()
-        
-        result = response.json()
-        return {
-            "currencies": {code.upper(): name for code, name in result.items()}
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Failed to fetch currencies: {str(e)}"
-        )
-
-# if __name__ == "__main__":
-#     import uvicorn
-#     uvicorn.run(app, host="0.0.0.0", port=8000)
