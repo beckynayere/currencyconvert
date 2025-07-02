@@ -291,27 +291,106 @@
 // });
 
 
+// import { defineConfig, loadEnv } from 'vite';
+// import react from '@vitejs/plugin-react';
+
+// export default defineConfig(({ mode }) => {
+//   // Load ONLY VITE_ prefixed env variables
+//   const env = loadEnv(mode, '', ['VITE_']);
+  
+//   // Ensure no trailing slash in API URL
+//   const apiUrl = (env.VITE_API_URL || 'https://currencyconvert-brwe.onrender.com').replace(/\/$/, '');
+
+//   return {
+//     plugins: [react()],
+    
+//     // Environment variables exposed to client
+//     define: {
+//       'import.meta.env.VITE_API_URL': JSON.stringify(apiUrl),
+//       'import.meta.env.MODE': JSON.stringify(mode),
+//       'import.meta.env.PROD': JSON.stringify(mode === 'production')
+//     },
+    
+//     // Development server settings
+//     server: {
+//       proxy: {
+//         '/api': {
+//           target: apiUrl,
+//           changeOrigin: true,
+//           rewrite: (path) => path.replace(/^\/api/, ''),
+//           secure: false,
+//           // Additional headers for FastAPI compatibility
+//           headers: {
+//             'Accept': 'application/json',
+//             'Content-Type': 'application/json'
+//           }
+//         }
+//       },
+//       // Configure port for consistency
+//       port: 5173,
+//       // Auto-open browser
+//       open: true
+//     },
+    
+//     // Production build settings
+//     build: {
+//       target: 'esnext',
+//       minify: 'terser',
+//       terserOptions: {
+//         compress: {
+//           drop_console: mode === 'production' // Only remove in production
+//         }
+//       },
+//       // Generate sourcemaps for debugging
+//       sourcemap: true,
+//       // Optimize chunk splitting
+//       rollupOptions: {
+//         output: {
+//           manualChunks: undefined,
+//           entryFileNames: 'assets/[name].[hash].js',
+//           chunkFileNames: 'assets/[name].[hash].js'
+//         }
+//       }
+//     },
+    
+//     // Preview server settings
+//     preview: {
+//       port: 4173,
+//       proxy: {
+//         '/api': {
+//           target: apiUrl,
+//           changeOrigin: true
+//         }
+//       }
+//     }
+//   };
+// });
+
+
+
+
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
-  // Load ONLY VITE_ prefixed env variables
+  // Load environment variables (Vite automatically handles client-side exposure)
+  // const env = loadEnv(mode, process.cwd(), ['VITE_']);
   const env = loadEnv(mode, '', ['VITE_']);
   
-  // Ensure no trailing slash in API URL
-  const apiUrl = (env.VITE_API_URL || 'https://currencyconvert-brwe.onrender.com').replace(/\/$/, '');
+  // Normalize API URL (remove trailing slash and enforce HTTPS in production)
+  const apiUrl = (env.VITE_API_URL || 'https://currencyconvert-brwe.onrender.com')
+    .replace(/\/$/, '')
+    .replace(/^http:/, 'https:');
 
   return {
     plugins: [react()],
     
-    // Environment variables exposed to client
+    // Explicitly expose only necessary env variables to client
     define: {
       'import.meta.env.VITE_API_URL': JSON.stringify(apiUrl),
       'import.meta.env.MODE': JSON.stringify(mode),
-      'import.meta.env.PROD': JSON.stringify(mode === 'production')
     },
     
-    // Development server settings
     server: {
       proxy: {
         '/api': {
@@ -319,47 +398,96 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, ''),
           secure: false,
-          // Additional headers for FastAPI compatibility
           headers: {
             'Accept': 'application/json',
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            // Add CORS headers for development
+            'Access-Control-Allow-Origin': JSON.stringify([
+              'http://localhost:5173',
+              'https://currencyconvertterm-langa.vercel.app'
+            ]),
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type'
+          },
+          // Handle OPTIONS requests for CORS preflight
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq) => {
+              if (proxyReq.method === 'OPTIONS') {
+                proxyReq.setHeader('Access-Control-Allow-Origin', '*');
+                proxyReq.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+                proxyReq.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+              }
+            });
           }
         }
       },
-      // Configure port for consistency
       port: 5173,
-      // Auto-open browser
-      open: true
+      open: true,
+      // Enable CORS for local development
+      cors: {
+        origin: [
+          'http://localhost:5173',
+          'https://currencyconvertterm-langa.vercel.app'
+        ],
+        methods: 'GET,POST,OPTIONS',
+        allowedHeaders: 'Content-Type'
+      }
     },
     
-    // Production build settings
     build: {
       target: 'esnext',
       minify: 'terser',
-      terserOptions: {
-        compress: {
-          drop_console: mode === 'production' // Only remove in production
-        }
-      },
-      // Generate sourcemaps for debugging
       sourcemap: true,
-      // Optimize chunk splitting
       rollupOptions: {
         output: {
           manualChunks: undefined,
           entryFileNames: 'assets/[name].[hash].js',
-          chunkFileNames: 'assets/[name].[hash].js'
+          chunkFileNames: 'assets/[name].[hash].js',
+          // Ensure proper CORS headers in built assets
+          assetFileNames: ({ name }) => {
+            if (/\.(woff2?|eot|ttf|otf)$/.test(name ?? '')) {
+              return 'assets/fonts/[name].[hash][extname]';
+            }
+            return 'assets/[name].[hash][extname]';
+          }
         }
-      }
+      },
+      // Ensure CORS headers in production build
+      assetsInlineLimit: 4096,
+      chunkSizeWarningLimit: 1600
     },
     
-    // Preview server settings
     preview: {
       port: 4173,
       proxy: {
         '/api': {
           target: apiUrl,
-          changeOrigin: true
+          changeOrigin: true,
+          headers: {
+            'Access-Control-Allow-Origin': JSON.stringify([
+              'http://localhost:4173',
+              'https://currencyconvertterm-langa.vercel.app'
+            ])
+          }
+        }
+      },
+      cors: {
+        origin: [
+          'http://localhost:4173',
+          'https://currencyconvertterm-langa.vercel.app'
+        ],
+        credentials: true
+      }
+    },
+    
+    // CSS handling
+    css: {
+      modules: {
+        localsConvention: 'camelCaseOnly'
+      },
+      preprocessorOptions: {
+        scss: {
+          additionalData: `@import "./src/styles/variables.scss";`
         }
       }
     }
