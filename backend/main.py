@@ -849,7 +849,7 @@ allowed_origins = list({origin.lower() for origin in allowed_origins if origin})
 # Enhanced CORS middleware configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
