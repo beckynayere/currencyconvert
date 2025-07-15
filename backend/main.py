@@ -476,16 +476,17 @@
 #             detail=f"Conversion error: {str(e)}"
 #         )
 
-# # if __name__ == "__main__":
-# #     import uvicorn
-# #     uvicorn.run(app, host="0.0.0.0", port=8000)
+# if __name__ == "__main__":
+#     import uvicorn
+#     uvicorn.run(app, host="0.0.0.0", port=8000)
+
 
 
 """
-FastAPI currency‑conversion API
-───────────────────────────────
-• GET  /currencies  – list available currency codes↔names
-• POST /convert     – convert an amount from → to
+FastAPI Currency Conversion API
+──────────────────────────────
+• GET  /currencies  - List available currency codes with names
+• POST /convert     - Convert amount between currencies
 """
 
 import os
@@ -500,110 +501,130 @@ from pydantic import BaseModel
 
 load_dotenv()
 
-app = FastAPI(title="Currency‑Converter API", version="1.0.0")
-
-# ───────────────────────── CORS CONFIG ──────────────────────────
-ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "https://currencyconverterry.vercel.app",
-    "https://currencyconverterry-git-master-naver.vercel.app",
-    "https://currencyconvertterm-langa.vercel.app",
-]
-
-# Accept extra origins from environment (comma‑separated)
-extra_origins = os.getenv("ALLOWED_ORIGINS", "")
-ALLOWED_ORIGINS += [o.strip().rstrip("/") for o in extra_origins.split(",") if o.strip()]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,  # ★ single‑origin echo handled automatically
-    allow_origins=["http://localhost:5173"], 
-    allow_origin_regex=r"https://.*\.vercel\.app", 
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    max_age=600,
+app = FastAPI(
+    title="Currency Converter API",
+    version="1.0.0",
+    description="Real-time currency conversion API"
 )
 
-# ───────────────────────── DATA MODELS ───────────────────────────
+# ======================= CORS CONFIGURATION =======================
+# Allow local development and all Vercel deployments
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:8000",
+        "http://127.0.0.1:5173",
+    ],
+    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=600
+)
+
+# ======================= DATA MODELS =======================
 class CurrencyRequest(BaseModel):
     amount: float
     from_currency: str
     to_currency: str
 
+class ConversionResponse(BaseModel):
+    query: Dict[str, str | float]
+    rate: float
+    converted: float
 
-# ──────────────────────── HEALTH/ROOT ROUTE ─────────────────────
-@app.get("/", tags=["meta"])
+# ======================= API ENDPOINTS =======================
+@app.get("/", tags=["meta"], summary="API Health Check")
 async def health_check() -> Dict[str, str]:
-    """Lightweight uptime check"""
+    """Check API status and available endpoints"""
     return {
         "status": "running",
         "server_time": datetime.utcnow().isoformat() + "Z",
         "docs": "/docs",
-        "endpoints": {"convert": "/convert", "currencies": "/currencies"},
+        "endpoints": {
+            "convert": "/convert",
+            "currencies": "/currencies"
+        },
     }
 
-
-# ─────────────────────── SUPPORTED CURRENCIES ───────────────────
-@app.get("/currencies", tags=["currency"])
+@app.get("/currencies", tags=["currency"], summary="List Available Currencies")
 async def get_supported_currencies() -> Dict[str, Dict[str, str]]:
     """
-    Fetch a dict of currency codes → human names.
+    Get all supported currency codes with their full names
+    Returns: { "currencies": { "USD": "United States Dollar", ... } }
     """
     try:
-        url = (
-            "https://cdn.jsdelivr.net/npm/@fawazahmed0/"
-            "currency-api@latest/v1/currencies.json"
+        response = requests.get(
+            "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.json",
+            timeout=5
         )
-        response = requests.get(url, timeout=5)
         response.raise_for_status()
-
-        raw = response.json()
-        # API returns keys in lowercase: {"usd": "United States Dollar", ...}
-        currencies = {code.upper(): name for code, name in raw.items()}
-        return {"currencies": currencies}
-
-    except Exception as exc:
+        
+        return {
+            "currencies": {
+                code.upper(): name 
+                for code, name in response.json().items()
+            }
+        }
+    except requests.RequestException as e:
         raise HTTPException(
-            status_code=502, detail=f"Failed to fetch currencies: {exc}"
-        ) from exc
+            status_code=502,
+            detail=f"Currency API unavailable: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected error: {str(e)}"
+        )
 
-
-# ────────────────────────── CONVERSION ──────────────────────────
-@app.post("/convert", tags=["currency"])
-async def convert_currency(body: CurrencyRequest):
+@app.post(
+    "/convert", 
+    tags=["currency"],
+    response_model=ConversionResponse,
+    summary="Convert Between Currencies"
+)
+async def convert_currency(body: CurrencyRequest) -> Dict:
     """
-    Convert `amount` from one currency to another.
+    Convert amount between currencies using real-time rates
+    
+    Parameters:
+    - from_currency: 3-letter currency code (e.g. "USD")
+    - to_currency: 3-letter currency code (e.g. "EUR")
+    - amount: Amount to convert
+    
+    Returns: Conversion result with rate
     """
     try:
         from_cur = body.from_currency.lower()
         to_cur = body.to_currency.lower()
 
-        # Same‑currency shortcut
+        # Same currency shortcut
         if from_cur == to_cur:
             return {
                 "query": {
                     "amount": body.amount,
                     "from": from_cur.upper(),
-                    "to": to_cur.upper(),
+                    "to": to_cur.upper()
                 },
                 "rate": 1.0,
-                "converted": round(body.amount, 4),
+                "converted": round(body.amount, 4)
             }
 
-        # ── Real‑time rate via same JSDelivr API ──
-        url = (
-            "https://cdn.jsdelivr.net/npm/@fawazahmed0/"
-            f"currency-api@latest/v1/currencies/{from_cur}.json"
+        # Get real-time exchange rates
+        response = requests.get(
+            f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/{from_cur}.json",
+            timeout=5
         )
-        api_resp = requests.get(url, timeout=5)
-        api_resp.raise_for_status()
-        rates = api_resp.json().get(from_cur, {})
-
+        response.raise_for_status()
+        
+        rates = response.json().get(from_cur, {})
         if to_cur not in rates:
             raise HTTPException(
                 status_code=400,
-                detail=f"Currency '{body.to_currency}' not found in rate table.",
+                detail=f"Target currency {body.to_currency} not found"
             )
 
         rate = rates[to_cur]
@@ -613,13 +634,25 @@ async def convert_currency(body: CurrencyRequest):
             "query": {
                 "amount": body.amount,
                 "from": from_cur.upper(),
-                "to": to_cur.upper(),
+                "to": to_cur.upper()
             },
             "rate": rate,
-            "converted": converted,
+            "converted": converted
         }
 
+    except requests.RequestException as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Exchange rate API unavailable: {str(e)}"
+        )
     except HTTPException:
-        raise  # re‑throw intact
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Conversion error: {exc}") from exc
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Conversion failed: {str(e)}"
+        )
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
