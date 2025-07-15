@@ -11,6 +11,7 @@ export const useCurrencies = () => {
       try {
         const data = await fetchCurrencies();
         setCurrencies(data);
+        // setCurrencies(data.currencies);
       } catch (err) {
         setError(err.message);
       } finally {

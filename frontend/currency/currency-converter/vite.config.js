@@ -465,7 +465,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           headers: {
             'Access-Control-Allow-Origin': JSON.stringify([
-              'http://localhost:4173',
+              'http://localhost:5173',
               'https://currencyconvertterm-langa.vercel.app'
             ])
           }
@@ -493,3 +493,6 @@ export default defineConfig(({ mode }) => {
     }
   };
 });
+
+
+
